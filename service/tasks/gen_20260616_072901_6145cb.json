@@ -1,0 +1,33 @@
+{
+  "task_id": "gen_20260616_072901_6145cb",
+  "project_id": "demo-final",
+  "status": "running",
+  "progress": 0.05,
+  "current_step": "Design spec",
+  "steps": [
+    {
+      "name": "Design",
+      "status": "running",
+      "detail": "Design spec..."
+    },
+    {
+      "name": "SVG",
+      "status": "pending",
+      "detail": ""
+    },
+    {
+      "name": "Notes",
+      "status": "pending",
+      "detail": ""
+    },
+    {
+      "name": "Export",
+      "status": "pending",
+      "detail": ""
+    }
+  ],
+  "result": null,
+  "error": null,
+  "created_at": "2026-06-16T07:29:01.045579+00:00",
+  "updated_at": "2026-06-16T07:29:01.050563+00:00"
+}

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PPT Master 生成服务</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="header">
+  <div><h1><span>PPT</span> Master</h1></div>
+  <div class="sub" id="current-project"></div>
+  <button class="btn" onclick="showHome()" style="font-size:12px;">首页</button>
+</div>
+<div class="container">
+
+<!-- Page: Home -->
+<div class="page active" id="page-home">
+  <h2>我的项目</h2>
+  <div class="form-row" style="margin-bottom:20px;">
+    <input id="project-name" placeholder="输入项目名称，如「AI行业趋势2026」" onkeydown="if(event.key==='Enter')createProject()">
+    <button class="btn primary" onclick="createProject()">创建项目</button>
+  </div>
+  <div id="project-list"><div class="loading">加载中...</div></div>
+</div>
+
+<!-- Page: Content Input -->
+<div class="page" id="page-input">
+  <h2>① 内容输入</h2>
+  <p>上传源文件或输入主题描述，AI 将分析内容并生成 PPT 大纲。</p>
+  <div class="card">
+    <h3>主题描述</h3>
+    <div class="form-group">
+      <textarea id="topic-input" rows="4" placeholder="例如：2026年人工智能行业趋势分析报告，包含市场概况、技术突破、应用场景、竞争格局和未来展望"></textarea>
+    </div>
+    <button class="btn primary" onclick="setTopic()">保存主题</button>
+  </div>
+  <div class="card">
+    <h3>上传源文件</h3>
+    <p style="font-size:12px;">支持 PDF、DOCX、PPTX、XLSX、图片等格式</p>
+    <div class="form-group">
+      <input type="file" id="file-input" multiple>
+    </div>
+    <button class="btn" onclick="uploadFiles()">上传文件</button>
+  </div>
+  <div class="btn-group">
+    <button class="btn primary" id="gen-outline-btn" onclick="genOutline()">AI 生成大纲</button>
+    <button class="btn" onclick="showHome()">返回</button>
+  </div>
+</div>
+
+<!-- Page: Outline Editor -->
+<div class="page" id="page-outline">
+  <h2>② 大纲编辑</h2>
+  <p>查看和编辑 AI 生成的逐页大纲。可修改标题、内容、布局类型，或增删页面。</p>
+  <div id="outline-editor"></div>
+  <div class="btn-group">
+    <button class="btn" onclick="addSlide()">+ 添加页面</button>
+    <button class="btn primary" onclick="confirmOutline()">确认大纲 →</button>
+  </div>
+</div>
+
+<!-- Page: Style Selector -->
+<div class="page" id="page-style">
+  <h2>③ 选择视觉风格</h2>
+  <p>选择 PPT 的视觉风格，决定整体的配色、字体和装饰语言。</p>
+  <input type="hidden" id="style-id" value="">
+  <div class="style-grid" id="style-grid"><div class="loading">加载风格中...</div></div>
+  <button class="btn primary" id="select-style-btn" onclick="confirmStyle()" disabled>确认风格 →</button>
+</div>
+
+<!-- Page: Confirmation -->
+<div class="page" id="page-confirm">
+  <h2>④ 确认并生成</h2>
+  <p>确认以下设计概览，确认后提交 PPT 生成任务。</p>
+  <div class="card">
+    <h3>设计概览</h3>
+    <div id="preview-info"></div>
+  </div>
+  <div class="btn-group">
+    <button class="btn" onclick="showStyleSelector()">← 修改风格</button>
+    <button class="btn primary" id="generate-btn" onclick="submitGeneration()">开始生成 PPT 🚀</button>
+  </div>
+</div>
+
+<!-- Page: Progress -->
+<div class="page" id="page-progress">
+  <h2>⑤ 生成进度</h2>
+  <p>PPT 正在生成中，可以在此页面等待或稍后回来查看。浏览器刷新不中断。</p>
+  <div class="card progress-header">
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-bar" style="width:0%"></div></div>
+    <div class="progress-text" id="progress-text">准备中...</div>
+  </div>
+  <h3>执行步骤</h3>
+  <div id="step-list"></div>
+  <div id="download-area"></div>
+</div>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>
