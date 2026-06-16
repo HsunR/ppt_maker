@@ -45,19 +45,21 @@ base_prompt = (
     f"Fonts: title={f['heading']}, body={f['body']}\n"
 )
 
-# If a previous page exists, include it as visual reference
-if prev_pid in existing:
-    prev_svg = existing[prev_pid].read_text("utf-8")
+# Include ALL previous SVGs as visual references for consistency
+if existing:
+    ref_names = sorted(existing.keys())
     base_prompt += (
-        "\n=== PREVIOUS SLIDE (visual reference) ===\n"
-        "Below is the SVG of the previous slide. Maintain CONSISTENT visual style:\n"
-        "- Same background treatment (gradient, color, opacity)\n"
-        "- Same decorative elements and accents (left stripe, gradient blobs)\n"
-        "- Same typography hierarchy (title font-size, subtitle font-size, body font-size)\n"
-        "- Same card/panel styling (corner radius, shadows, stroke width)\n"
-        "- Same color usage pattern (primary for highlights, secondary for accents)\n"
-        f"{prev_svg[:3000]}\n"
+        "\n=== PREVIOUS SLIDES (visual references, newest last) ===\n"
+        "Below are ALL previously generated slides. Maintain CONSISTENT visual style:\n"
+        "- Same background treatment (gradient, color, opacity, blob placement)\n"
+        "- Same decorative elements (left stripe, gradient blobs, line separators)\n"
+        "- Same typography hierarchy (title ~48px, subtitle ~28px, body ~20-22px)\n"
+        "- Same card/panel styling (rounded rects, F8FAFC bg, E2E8F0 border, 12px radius)\n"
+        "- Same color usage pattern (primary #2563EB for highlights, secondary #7C3AED for accents)\n"
     )
+    for ref_pid in ref_names:
+        svg_content = existing[ref_pid].read_text("utf-8")
+        base_prompt += f"\n--- Page {ref_pid} SVG ---\n{svg_content}\n"
 
 # Build page-specific content
 user_prompt = (
