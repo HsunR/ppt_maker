@@ -16,7 +16,7 @@ from service.utils import scripts as s
 from service.utils.tasks import create_task, load_task
 from service.utils.tasks import set_task_result, set_task_error
 from service.utils.tasks import update_step, update_task_status
-from service.utils.llm import call_llm
+from service.utils.llm import call_llm, try_parse_json
 
 router = APIRouter()
 
@@ -153,17 +153,28 @@ def generate_outline(project_id: str, body: Optional[OutlineGenerate] = None):
     b = body or OutlineGenerate()
     ok, r = call_llm(OUTLINE_PROMPT, src, model=b.llm_model, api_key=b.llm_api_key, base_url=b.llm_base_url)
     if not ok: raise HTTPException(500, f"LLM fail: {r}")
-    m = re.search(r"\[.*\]", r, re.DOTALL)
+    import json as _json2
+    # Try to extract JSON array from response
+    m = re.search(r"\[.*?\]", r, re.DOTALL)
+    if not m:
+        # Try harder - find anything that looks like JSON
+        m = re.search(r"\[\s*\{.*\}\]", r, re.DOTALL)
     if m:
+        raw = m.group()
+        # Clean common issues: trailing commas, markdown fences, unescaped quotes
+        clean = re.sub(r",\s*([}\]])", r"", raw)  # Remove trailing commas
+        clean = re.sub(r"```(?:json)?\n*", "", clean)  # Remove markdown fences
+        clean = re.sub(r"\n*```", "", clean)
         try:
-            sd = _json.loads(m.group())
+            sd = _json2.loads(clean)
             slides = [SlideOutline(**s) for s in sd]
             proj.outline = ProjectOutline(slides=slides, confirmed=False)
             proj.status = ProjectStatus.outlining
             save_project(proj)
             return proj.outline
-        except Exception as e: raise HTTPException(500, f"Parse: {e}")
-    raise HTTPException(500, f"No JSON: {r[:300]}")
+        except Exception as e:
+            raise HTTPException(500, f"Parse error in JSON response. Detail: {e}\n\nResponse start: {raw[:500]}")
+    raise HTTPException(500, f"No JSON found in LLM response. Response: {r[:500]}")
 
 @router.get("/api/projects/{project_id}/outline")
 def get_outline(project_id: str): return _gpo404(project_id).outline
