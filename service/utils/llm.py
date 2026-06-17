@@ -45,7 +45,6 @@ def call_llm(
         return False, "LLM请求超时"
     except Exception as e:
         return False, f"LLM调用失败: {e}"
-        return False, "LLM调用失败: {e}"
 
 def call_llm_nonstream(
     system_prompt: str,
