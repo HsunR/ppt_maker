@@ -18,7 +18,7 @@ def call_llm(
     api_key: str = "",
     base_url: str = "",
     temperature: float = 0.7,
-    max_tokens: int = 32768,
+    max_tokens: int = None,
     stream: bool = True,  # default to streaming for reasoning model safety
 ) -> tuple[bool, str]:
     """Call OpenAI-compatible LLM. Returns (success, content_or_error)."""
@@ -54,7 +54,7 @@ def call_llm_nonstream(
     api_key: str = "",
     base_url: str = "",
     temperature: float = 0.7,
-    max_tokens: int = 32768,
+    max_tokens: int = None,
 ) -> tuple[bool, str]:
     """Non-streaming fallback for models that don't support streaming."""
     client = get_client(api_key, base_url)
@@ -128,4 +128,14 @@ def try_parse_json(text: str):
             return _json.loads(candidate)
         except _json.JSONDecodeError:
             pass
+    # Try 5: truncated JSON - find last complete object, close it, and close the array
+    try:
+        t = text.strip()
+        # Find last complete {object}
+        last_close = t.rfind('}')
+        if last_close > t.rfind('['):
+            t = t[:last_close+1] + ']'
+            return _json.loads(t)
+    except:
+        pass
     return None
