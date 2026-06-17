@@ -18,7 +18,7 @@ def call_llm(
     api_key: str = "",
     base_url: str = "",
     temperature: float = 0.7,
-    max_tokens: int = None,
+    max_tokens: int = 65536,
     stream: bool = True,  # default to streaming for reasoning model safety
 ) -> tuple[bool, str]:
     """Call OpenAI-compatible LLM. Returns (success, content_or_error)."""
@@ -53,7 +53,7 @@ def call_llm_nonstream(
     api_key: str = "",
     base_url: str = "",
     temperature: float = 0.7,
-    max_tokens: int = None,
+    max_tokens: int = 65536,
 ) -> tuple[bool, str]:
     """Non-streaming fallback for models that don't support streaming."""
     client = get_client(api_key, base_url)
