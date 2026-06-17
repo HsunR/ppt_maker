@@ -69,12 +69,17 @@ def _sanitize_id(name):
 
 @router.post("/api/projects")
 def create_project(body: ProjectCreate):
-    if load_project(body.name): raise HTTPException(400, "Exists")
-        safe_id = _sanitize_id(body.name)
+    if load_project(body.name): raise HTTPException(400, "Already exists")
+    safe_id = _sanitize_id(body.name)
     proj = Project(id=safe_id, name=body.name, format=body.format, status=ProjectStatus.created)
     proj.touch()
-    ok, r = s.project_init(body.name, body.format)
+    ok, r = s.project_init(safe_id, body.format)
     if not ok: raise HTTPException(500, f"Init failed: {r}")
+    result_path = Path(r)
+    if not result_path.is_absolute():
+        result_path = Path(settings.ppt_master_dir) / result_path
+    if result_path.exists():
+        proj.id = result_path.name
     save_project(proj)
     return proj
 
