@@ -3,100 +3,164 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PPT Master 生成服务</title>
+<title>PPT Master - AI PPT 生成</title>
 <link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 </head>
 <body>
-<div class="header">
-  <div><h1><span>PPT</span> Master</h1></div>
-  <div class="sub" id="current-project"></div>
-  <button class="btn" onclick="showHome()" style="font-size:12px;">首页</button>
-</div>
-<div class="container">
+<div id="app">
+  <header>
+    <div class="logo">PPT Master</div>
+    <div class="project-name">{{ currentProject?.name || '' }}</div>
+    <button class="btn btn-sm" @click="goHome">&#8592; 首页</button>
+  </header>
 
-<!-- Page: Home -->
-<div class="page active" id="page-home">
-  <h2>我的项目</h2>
-  <div class="form-row" style="margin-bottom:20px;">
-    <input id="project-name" placeholder="输入项目名称，如「AI行业趋势2026」" onkeydown="if(event.key==='Enter')createProject()">
-    <button class="btn primary" onclick="createProject()">创建项目</button>
+  <!-- Steps -->
+  <div class="steps">
+    <div v-for="(s, i) in steps" :key="i"
+         :class="['step', { active: step >= i+1, done: step > i+1 }]">{{ s }}</div>
   </div>
-  <div id="project-list"><div class="loading">加载中...</div></div>
-</div>
 
-<!-- Page: Content Input -->
-<div class="page" id="page-input">
-  <h2>① 内容输入</h2>
-  <p>上传源文件或输入主题描述，AI 将分析内容并生成 PPT 大纲。</p>
-  <div class="card">
-    <h3>主题描述</h3>
-    <div class="form-group">
-      <textarea id="topic-input" rows="4" placeholder="例如：2026年人工智能行业趋势分析报告，包含市场概况、技术突破、应用场景、竞争格局和未来展望"></textarea>
+  <main>
+    <!-- HOME -->
+    <div v-show="page === 'home'" class="page active">
+      <h2>我的项目</h2>
+      <div class="form-row">
+        <input v-model="newName" placeholder="项目名称，如 AI行业趋势2026" @keyup.enter="createProject">
+        <button class="btn btn-primary" @click="createProject">+ 创建项目</button>
+      </div>
+      <div v-if="loading" class="loading">加载中...</div>
+      <div v-else-if="projects.length === 0" class="empty">暂无项目，创建一个开始吧</div>
+      <div v-else>
+        <div v-for="p in projects" :key="p.id" class="project-card" @click="loadProject(p)">
+          <strong>{{ p.name }}</strong>
+          <span class="tag">{{ p.status }}</span>
+          <span class="meta">{{ p.format }} &middot; {{ fmtDate(p.created_at) }}</span>
+        </div>
+      </div>
+      <div v-if="error" class="error">{{ error }}</div>
     </div>
-    <button class="btn primary" onclick="setTopic()">保存主题</button>
-  </div>
-  <div class="card">
-    <h3>上传源文件</h3>
-    <p style="font-size:12px;">支持 PDF、DOCX、PPTX、XLSX、图片等格式</p>
-    <div class="form-group">
-      <input type="file" id="file-input" multiple>
+
+    <!-- INPUT -->
+    <div v-show="page === 'input'" class="page">
+      <h2>1. 内容输入</h2>
+      <p class="desc">输入主题、上传文件或粘贴链接，AI 将分析内容生成 PPT 大纲。</p>
+      <div class="card">
+        <h3>主题描述</h3>
+        <textarea v-model="topicText" rows="5" placeholder="例如：2026人工智能行业趋势分析报告..."></textarea>
+        <button class="btn btn-primary" @click="saveTopic">保存主题</button>
+      </div>
+      <div class="card">
+        <h3>上传文件</h3>
+        <p class="hint">支持 PDF / DOCX / PPTX / XLSX / 图片</p>
+        <div class="drop-zone" @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="onDrop">
+          点击选择文件或拖拽到此处
+          <input type="file" ref="fileInput" multiple style="display:none" @change="uploadFiles">
+        </div>
+        <div v-if="uploadMsg" class="msg">{{ uploadMsg }}</div>
+      </div>
+      <div class="card">
+        <h3>从链接导入</h3>
+        <div class="form-row">
+          <input v-model="urlText" placeholder="https://...">
+          <button class="btn" @click="importUrl">导入</button>
+        </div>
+      </div>
+      <div class="nav-buttons">
+        <button class="btn btn-primary btn-lg" @click="generateOutline" :disabled="genLoading">
+          {{ genLoading ? '生成中...' : 'AI 生成大纲' }}
+        </button>
+      </div>
     </div>
-    <button class="btn" onclick="uploadFiles()">上传文件</button>
-  </div>
-  <div class="btn-group">
-    <button class="btn primary" id="gen-outline-btn" onclick="genOutline()">AI 生成大纲</button>
-    <button class="btn" onclick="showHome()">返回</button>
-  </div>
+
+    <!-- OUTLINE -->
+    <div v-show="page === 'outline'" class="page">
+      <h2>2. AI 大纲 ({{ slides.length }} 页)</h2>
+      <p class="desc">编辑大纲，可修改标题、内容、布局，增删页面。</p>
+      <div v-for="(s, i) in slides" :key="s.id" class="slide-card">
+        <div class="slide-num">{{ s.id }}</div>
+        <div class="slide-fields">
+          <input v-model="s.title" placeholder="标题" class="slide-title">
+          <textarea v-model="s.content" placeholder="内容要点" rows="2"></textarea>
+          <select v-model="s.layout">
+            <option v-for="l in layouts" :key="l" :value="l">{{ l }}</option>
+          </select>
+        </div>
+        <div class="slide-actions">
+          <button class="btn-icon" @click="moveSlide(i, -1)" :disabled="i===0" title="上移">&#8593;</button>
+          <button class="btn-icon" @click="moveSlide(i, 1)" :disabled="i===slides.length-1" title="下移">&#8595;</button>
+          <button class="btn-icon danger" @click="delSlide(i)" title="删除">&#10005;</button>
+        </div>
+      </div>
+      <div class="nav-buttons">
+        <button class="btn" @click="addSlide">+ 添加页面</button>
+        <button class="btn btn-primary btn-lg" @click="confirmOutline">确认大纲</button>
+      </div>
+    </div>
+
+    <!-- STYLE -->
+    <div v-show="page === 'style'" class="page">
+      <h2>3. 选择视觉风格</h2>
+      <p class="desc">选择 PPT 视觉风格，决定配色、字体和装饰语言。</p>
+      <div class="style-grid">
+        <div v-for="st in styles" :key="st.id" :class="['style-card', { sel: styleId === st.id }]"
+             @click="selectStyle(st.id)">
+          <div class="style-name">{{ st.name_cn }}</div>
+          <div class="style-en">{{ st.name }}</div>
+          <div class="style-desc">{{ st.character }}</div>
+        </div>
+      </div>
+      <div class="nav-buttons">
+        <button class="btn btn-primary btn-lg" @click="confirmStyle" :disabled="!styleId">确认风格</button>
+      </div>
+    </div>
+
+    <!-- CONFIRM -->
+    <div v-show="page === 'confirm'" class="page">
+      <h2>4. 确认并生成</h2>
+      <p class="desc">确认设计概览后提交生成任务。</p>
+      <div class="card">
+        <h3>设计概览</h3>
+        <div class="preview-grid">
+          <div><span>页数</span>{{ slides.length }}</div>
+          <div><span>格式</span>16:9</div>
+          <div><span>风格</span>{{ styleName }}</div>
+          <div><span>主色</span><span class="color-swatch" :style="{ background: designColors.primary }"></span>{{ designColors.primary }}</div>
+          <div><span>字体</span>{{ designFonts.heading }}</div>
+        </div>
+      </div>
+      <div class="nav-buttons">
+        <button class="btn" @click="page='style'">修改风格</button>
+        <button class="btn btn-accent btn-lg" @click="submitGen">&#9889; 开始生成</button>
+      </div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div v-show="page === 'progress'" class="page">
+      <h2>5. 生成进度</h2>
+      <p class="desc">PPT 正在生成，刷新页面不会中断。</p>
+      <div class="card progress-card">
+        <div class="progress-bar"><div class="progress-fill" :style="{ width: progressPct + '%' }"></div></div>
+        <div class="progress-text">{{ progressText }}</div>
+      </div>
+      <div class="steps-vertical">
+        <div v-for="s in taskSteps" :key="s.name" :class="['step-v', s.status]">
+          <span class="step-icon">{{ {completed:'&#10003;', running:'&#9654;', failed:'&#10007;', pending:'&#9679;'}[s.status] }}</span>
+          {{ s.name }}
+          <span v-if="s.detail" class="step-detail">{{ s.detail }}</span>
+        </div>
+      </div>
+      <div v-if="taskDone" class="success-area">
+        <div class="success-banner">PPT 生成完成！</div>
+        <a :href="downloadUrl" class="btn btn-primary btn-lg" download>&#128229; 下载 PPTX</a>
+        <button class="btn" @click="goHome">返回首页</button>
+      </div>
+      <div v-if="taskError" class="error">{{ taskError }}</div>
+    </div>
+  </main>
 </div>
 
-<!-- Page: Outline Editor -->
-<div class="page" id="page-outline">
-  <h2>② 大纲编辑</h2>
-  <p>查看和编辑 AI 生成的逐页大纲。可修改标题、内容、布局类型，或增删页面。</p>
-  <div id="outline-editor"></div>
-  <div class="btn-group">
-    <button class="btn" onclick="addSlide()">+ 添加页面</button>
-    <button class="btn primary" onclick="confirmOutline()">确认大纲 →</button>
-  </div>
-</div>
-
-<!-- Page: Style Selector -->
-<div class="page" id="page-style">
-  <h2>③ 选择视觉风格</h2>
-  <p>选择 PPT 的视觉风格，决定整体的配色、字体和装饰语言。</p>
-  <input type="hidden" id="style-id" value="">
-  <div class="style-grid" id="style-grid"><div class="loading">加载风格中...</div></div>
-  <button class="btn primary" id="select-style-btn" onclick="confirmStyle()" disabled>确认风格 →</button>
-</div>
-
-<!-- Page: Confirmation -->
-<div class="page" id="page-confirm">
-  <h2>④ 确认并生成</h2>
-  <p>确认以下设计概览，确认后提交 PPT 生成任务。</p>
-  <div class="card">
-    <h3>设计概览</h3>
-    <div id="preview-info"></div>
-  </div>
-  <div class="btn-group">
-    <button class="btn" onclick="showStyleSelector()">← 修改风格</button>
-    <button class="btn primary" id="generate-btn" onclick="submitGeneration()">开始生成 PPT 🚀</button>
-  </div>
-</div>
-
-<!-- Page: Progress -->
-<div class="page" id="page-progress">
-  <h2>⑤ 生成进度</h2>
-  <p>PPT 正在生成中，可以在此页面等待或稍后回来查看。浏览器刷新不中断。</p>
-  <div class="card progress-header">
-    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-bar" style="width:0%"></div></div>
-    <div class="progress-text" id="progress-text">准备中...</div>
-  </div>
-  <h3>执行步骤</h3>
-  <div id="step-list"></div>
-  <div id="download-area"></div>
-</div>
-
-</div>
+<footer>PPT Master Service</footer>
 <script src="app.js"></script>
 </body>
 </html>
