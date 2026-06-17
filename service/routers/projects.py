@@ -59,10 +59,19 @@ def _gst(proj):
             if fp.exists(): parts.append('## ' + src.original_name + '\\n' + fp.read_text(encoding='utf-8'))
     return '\\n\\n---\\n\\n'.join(parts)
 
+import re
+
+
+def _sanitize_id(name):
+    safe = re.sub(r"[^\w\-]", "_", name).strip("_") or "project"
+    return safe
+
+
 @router.post("/api/projects")
 def create_project(body: ProjectCreate):
     if load_project(body.name): raise HTTPException(400, "Exists")
-    proj = Project(id=body.name, name=body.name, format=body.format, status=ProjectStatus.created)
+        safe_id = _sanitize_id(body.name)
+    proj = Project(id=safe_id, name=body.name, format=body.format, status=ProjectStatus.created)
     proj.touch()
     ok, r = s.project_init(body.name, body.format)
     if not ok: raise HTTPException(500, f"Init failed: {r}")
