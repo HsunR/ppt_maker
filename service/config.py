@@ -3,6 +3,23 @@ from pathlib import Path
 
 class Settings:
     def __init__(self):
+        import os
+        import sys
+        # Try to load .env file
+        _env_paths = [
+            Path(__file__).resolve().parent.parent / ".env",
+            Path(__file__).resolve().parent.parent / ".env.local",
+        ]
+        for _env_p in _env_paths:
+            if _env_p.exists():
+                for _line in _env_p.read_text("utf-8").splitlines():
+                    _line = _line.strip()
+                    if _line and not _line.startswith("#") and "=" in _line:
+                        _k, _v = _line.split("=", 1)
+                        _k, _v = _k.strip(), _v.strip().strip("'\"")
+                        if _k not in os.environ:
+                            os.environ[_k] = _v
+                break
         service_dir = Path(__file__).resolve().parent
         repo_root = service_dir.parent
         self.ppt_master_dir = os.environ.get("PPT_SERVICE_PPT_MASTER_DIR", str(repo_root / "ppt-master"))
