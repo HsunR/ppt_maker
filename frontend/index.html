@@ -3,164 +3,278 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PPT Master - AI PPT 生成</title>
+<title>PPT Master - AI PPT 生成服务</title>
 <link rel="stylesheet" href="style.css">
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 </head>
 <body>
+
 <div id="app">
+  <!-- Toast -->
+  <transition name="toast">
+    <div v-if="toast.show" :class="['toast', toast.type]">{{ toast.msg }}</div>
+  </transition>
+
+  <!-- Header -->
   <header>
-    <div class="logo">PPT Master</div>
-    <div class="project-name">{{ currentProject?.name || '' }}</div>
-    <button class="btn btn-sm" @click="goHome">&#8592; 首页</button>
+    <div class="header-inner">
+      <div class="logo" @click="goHome">
+        <span class="logo-icon">&#9670;</span>
+        <span class="logo-text">PPT Master</span>
+      </div>
+      <div class="header-project" v-if="currentProject">{{ currentProject.name }}</div>
+      <button v-if="page !== 'home'" class="btn btn-sm" @click="goHome">&larr; 首页</button>
+    </div>
   </header>
 
   <!-- Steps -->
-  <div class="steps">
+  <div class="steps-bar" v-if="page !== 'home'">
     <div v-for="(s, i) in steps" :key="i"
-         :class="['step', { active: step >= i+1, done: step > i+1 }]">{{ s }}</div>
+         :class="['step', { cur: step === i, done: step > i }]"
+         @click="step > i ? goToStep(i) : null">
+      <div class="step-num">{{ step > i ? '&#10003;' : i + 1 }}</div>
+      <div class="step-label">{{ s }}</div>
+    </div>
   </div>
 
   <main>
-    <!-- HOME -->
-    <div v-show="page === 'home'" class="page active">
-      <h2>我的项目</h2>
-      <div class="form-row">
-        <input v-model="newName" placeholder="项目名称，如 AI行业趋势2026" @keyup.enter="createProject">
-        <button class="btn btn-primary" @click="createProject">+ 创建项目</button>
+    <!-- ════════════ HOME ════════════ -->
+    <div v-show="page === 'home'" class="page">
+      <div class="home-hero">
+        <h1>AI PPT 生成服务</h1>
+        <p>上传文档或输入主题，AI 自动生成原生可编辑的 PowerPoint 文件</p>
       </div>
-      <div v-if="loading" class="loading">加载中...</div>
-      <div v-else-if="projects.length === 0" class="empty">暂无项目，创建一个开始吧</div>
-      <div v-else>
-        <div v-for="p in projects" :key="p.id" class="project-card" @click="loadProject(p)">
-          <strong>{{ p.name }}</strong>
-          <span class="tag">{{ p.status }}</span>
-          <span class="meta">{{ p.format }} &middot; {{ fmtDate(p.created_at) }}</span>
+
+      <div class="create-card">
+        <input v-model="newName" placeholder="输入项目名称，如「AI行业趋势2026」" @keyup.enter="createProject"
+               :disabled="creating" maxlength="60">
+        <button class="btn btn-primary" @click="createProject" :disabled="creating || !newName.trim()">
+          {{ creating ? '创建中...' : '+ 创建项目' }}
+        </button>
+      </div>
+
+      <div class="section-title">
+        <h3>已有项目</h3>
+        <span v-if="!loading && projects.length > 0" class="count">{{ projects.length }} 个</span>
+      </div>
+
+      <div v-if="loading" class="loading"><div class="spinner"></div> 加载中...</div>
+      <div v-else-if="projects.length === 0" class="empty-state">
+        <div class="empty-icon">&#128196;</div>
+        <p>暂无项目，创建一个开始吧</p>
+      </div>
+      <div v-else class="project-list">
+        <div v-for="p in projects" :key="p.id" class="project-card" @click="openProject(p)">
+          <div class="pc-left">
+            <div class="pc-name">{{ p.name }}</div>
+            <div class="pc-meta">{{ fmtDate(p.updated_at || p.created_at) }}</div>
+          </div>
+          <div class="pc-center">
+            <StatusBadge :status="p.status" />
+            <span class="pc-format">{{ p.format }}</span>
+          </div>
+          <button class="btn-icon danger" @click.stop="deleteProject(p)" title="删除项目">&times;</button>
         </div>
       </div>
-      <div v-if="error" class="error">{{ error }}</div>
+      <div v-if="homeError" class="error-box">{{ homeError }}</div>
     </div>
 
-    <!-- INPUT -->
+    <!-- ════════════ INPUT ════════════ -->
     <div v-show="page === 'input'" class="page">
       <h2>1. 内容输入</h2>
-      <p class="desc">输入主题、上传文件或粘贴链接，AI 将分析内容生成 PPT 大纲。</p>
+      <p class="page-desc">输入主题描述、上传源文件或粘贴网页链接，AI 将分析内容生成 PPT 大纲。</p>
+
       <div class="card">
-        <h3>主题描述</h3>
-        <textarea v-model="topicText" rows="5" placeholder="例如：2026人工智能行业趋势分析报告..."></textarea>
-        <button class="btn btn-primary" @click="saveTopic">保存主题</button>
+        <div class="card-header"><h3>&#9997; 主题描述</h3><span class="badge" v-if="hasTopic">已保存</span></div>
+        <textarea v-model="topicText" rows="5" placeholder="例如：2026年人工智能行业趋势分析报告，包含市场概况、技术突破、应用场景和竞争格局..."
+                  class="input-textarea"></textarea>
+        <button class="btn btn-primary btn-sm" @click="saveTopic" :disabled="!topicText.trim()">保存主题</button>
       </div>
+
       <div class="card">
-        <h3>上传文件</h3>
-        <p class="hint">支持 PDF / DOCX / PPTX / XLSX / 图片</p>
-        <div class="drop-zone" @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="onDrop">
-          点击选择文件或拖拽到此处
-          <input type="file" ref="fileInput" multiple style="display:none" @change="uploadFiles">
+        <div class="card-header"><h3>&#128206; 上传文件</h3></div>
+        <p class="field-hint">支持 PDF / DOCX / PPTX / XLSX 及图片</p>
+        <div class="drop-zone" @click="$refs.fi.click()" @dragover.prevent @drop.prevent="onDrop"
+             :class="{ active: dragOver }" @dragenter="dragOver = true" @dragleave="dragOver = false">
+          <div class="dz-icon">&#128194;</div>
+          <div class="dz-text">{{ uploading ? '上传中...' : '点击选择文件或拖拽到此处' }}</div>
+          <input type="file" ref="fi" multiple style="display:none" @change="uploadFiles">
         </div>
-        <div v-if="uploadMsg" class="msg">{{ uploadMsg }}</div>
+        <transition name="fade"><div v-if="uploadMsg" :class="['msg', uploadOk ? 'ok' : 'err']">{{ uploadMsg }}</div></transition>
       </div>
+
       <div class="card">
-        <h3>从链接导入</h3>
-        <div class="form-row">
-          <input v-model="urlText" placeholder="https://...">
-          <button class="btn" @click="importUrl">导入</button>
+        <div class="card-header"><h3>&#128279; 从链接导入</h3></div>
+        <div class="row">
+          <input v-model="urlText" placeholder="https://example.com/article" @keyup.enter="importUrl" class="flex-1">
+          <button class="btn" @click="importUrl" :disabled="!urlText.trim()">导入</button>
         </div>
       </div>
-      <div class="nav-buttons">
-        <button class="btn btn-primary btn-lg" @click="generateOutline" :disabled="genLoading">
-          {{ genLoading ? '生成中...' : 'AI 生成大纲' }}
+
+      <div class="actions">
+        <button class="btn btn-primary btn-lg" @click="generateOutline" :disabled="generating">
+          {{ generating ? '&#9696; 生成中...' : '&#9654; AI 生成大纲' }}
         </button>
       </div>
     </div>
 
-    <!-- OUTLINE -->
+    <!-- ════════════ OUTLINE ════════════ -->
     <div v-show="page === 'outline'" class="page">
-      <h2>2. AI 大纲 ({{ slides.length }} 页)</h2>
-      <p class="desc">编辑大纲，可修改标题、内容、布局，增删页面。</p>
-      <div v-for="(s, i) in slides" :key="s.id" class="slide-card">
-        <div class="slide-num">{{ s.id }}</div>
-        <div class="slide-fields">
-          <input v-model="s.title" placeholder="标题" class="slide-title">
-          <textarea v-model="s.content" placeholder="内容要点" rows="2"></textarea>
-          <select v-model="s.layout">
-            <option v-for="l in layouts" :key="l" :value="l">{{ l }}</option>
-          </select>
-        </div>
-        <div class="slide-actions">
-          <button class="btn-icon" @click="moveSlide(i, -1)" :disabled="i===0" title="上移">&#8593;</button>
-          <button class="btn-icon" @click="moveSlide(i, 1)" :disabled="i===slides.length-1" title="下移">&#8595;</button>
+      <h2>2. AI 大纲 <span class="count-badge">{{ slides.length }} 页</span></h2>
+      <p class="page-desc">编辑 AI 生成的大纲。可修改标题、内容和布局，支持增删和排序。</p>
+
+      <div v-if="slides.length === 0" class="empty-state">
+        <p>尚未生成大纲，请先输入内容。</p>
+        <button class="btn" @click="goToInput">&larr; 去输入内容</button>
+      </div>
+
+      <div v-for="(s, i) in slides" :key="s._key || i" class="slide-block">
+        <div class="slide-header">
+          <span class="slide-idx">#{{ s.id }}</span>
+          <span class="slide-layout-tag">{{ s.layout }}</span>
+          <div class="slide-arrows">
+            <button class="btn-icon" @click="moveSlide(i, -1)" :disabled="i===0" title="上移">&#8593;</button>
+            <button class="btn-icon" @click="moveSlide(i, 1)" :disabled="i===slides.length-1" title="下移">&#8595;</button>
+          </div>
           <button class="btn-icon danger" @click="delSlide(i)" title="删除">&#10005;</button>
         </div>
-      </div>
-      <div class="nav-buttons">
-        <button class="btn" @click="addSlide">+ 添加页面</button>
-        <button class="btn btn-primary btn-lg" @click="confirmOutline">确认大纲</button>
-      </div>
-    </div>
-
-    <!-- STYLE -->
-    <div v-show="page === 'style'" class="page">
-      <h2>3. 选择视觉风格</h2>
-      <p class="desc">选择 PPT 视觉风格，决定配色、字体和装饰语言。</p>
-      <div class="style-grid">
-        <div v-for="st in styles" :key="st.id" :class="['style-card', { sel: styleId === st.id }]"
-             @click="selectStyle(st.id)">
-          <div class="style-name">{{ st.name_cn }}</div>
-          <div class="style-en">{{ st.name }}</div>
-          <div class="style-desc">{{ st.character }}</div>
+        <div class="slide-body">
+          <input v-model="s.title" placeholder="页面标题" class="input-slide-title">
+          <textarea v-model="s.content" placeholder="内容要点（每行一个要点）" rows="3" class="input-textarea"></textarea>
+          <div class="row">
+            <label class="label-sm">布局：</label>
+            <select v-model="s.layout" class="select-sm">
+              <option v-for="l in layouts" :key="l" :value="l">{{ l }}</option>
+            </select>
+            <label class="label-sm" style="margin-left:12px">备注：</label>
+            <input v-model="s.notes" placeholder="演讲者备注（可选）" class="flex-1">
+          </div>
         </div>
       </div>
-      <div class="nav-buttons">
-        <button class="btn btn-primary btn-lg" @click="confirmStyle" :disabled="!styleId">确认风格</button>
+
+      <div class="actions">
+        <button class="btn" @click="addSlide">+ 添加页面</button>
+        <span class="flex-1"></span>
+        <button class="btn" @click="goToInput">&larr; 修改内容</button>
+        <button class="btn btn-primary btn-lg" @click="confirmOutline" :disabled="slides.length < 2">确认大纲 &#9654;</button>
       </div>
     </div>
 
-    <!-- CONFIRM -->
+    <!-- ════════════ STYLE ════════════ -->
+    <div v-show="page === 'style'" class="page">
+      <h2>3. 视觉风格</h2>
+      <p class="page-desc">选择 PPT 的视觉风格，决定整体配色、字体和装饰语言。</p>
+
+      <div v-if="styleLoading" class="loading"><div class="spinner"></div> 加载风格...</div>
+      <div v-else class="style-grid">
+        <div v-for="st in styles" :key="st.id" :class="['style-card', { selected: styleId === st.id }]"
+             @click="selectStyle(st.id)">
+          <div class="sc-dot" :style="{ background: styleColor(st.id) }"></div>
+          <div class="sc-name">{{ st.name_cn }}</div>
+          <div class="sc-en">{{ st.name }}</div>
+          <div class="sc-desc">{{ st.character }}</div>
+        </div>
+      </div>
+
+      <div class="card" v-if="styleId">
+        <div class="card-header"><h3>&#127912; 已选：{{ styleName }}</h3></div>
+        <div class="row" style="gap:24px; flex-wrap:wrap">
+          <div><label>叙事模式</label><select v-model="modeId" class="select-sm">
+            <option v-for="m in modes" :key="m" :value="m">{{ {narrative:'叙事型',briefing:'简报型',instructional:'教学型',pyramid:'金字塔型',showcase:'展示型'}[m] || m }}</option>
+          </select></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" @click="goToOutline">&larr; 修改大纲</button>
+        <button class="btn btn-primary btn-lg" @click="confirmStyle" :disabled="!styleId">确认风格 &#9654;</button>
+      </div>
+    </div>
+
+    <!-- ════════════ CONFIRM ════════════ -->
     <div v-show="page === 'confirm'" class="page">
       <h2>4. 确认并生成</h2>
-      <p class="desc">确认设计概览后提交生成任务。</p>
+      <p class="page-desc">确认设计概览，然后提交 PPT 生成任务。生成过程可在后台进行。</p>
+
       <div class="card">
-        <h3>设计概览</h3>
+        <div class="card-header"><h3>&#128202; 设计概览</h3></div>
         <div class="preview-grid">
-          <div><span>页数</span>{{ slides.length }}</div>
-          <div><span>格式</span>16:9</div>
-          <div><span>风格</span>{{ styleName }}</div>
-          <div><span>主色</span><span class="color-swatch" :style="{ background: designColors.primary }"></span>{{ designColors.primary }}</div>
-          <div><span>字体</span>{{ designFonts.heading }}</div>
+          <div class="pg-item"><span>页数</span><strong>{{ slides.length }}</strong></div>
+          <div class="pg-item"><span>格式</span>16:9 (1920x1080)</div>
+          <div class="pg-item"><span>风格</span><strong>{{ styleName || styleId }}</strong></div>
+          <div class="pg-item"><span>模式</span>{{ modeName }}</div>
+          <div class="pg-item"><span>主色</span><span class="color-chip" :style="{background: designColors.primary}"></span>{{ designColors.primary }}</div>
+          <div class="pg-item"><span>辅色</span><span class="color-chip" :style="{background: designColors.secondary}"></span>{{ designColors.secondary }}</div>
+          <div class="pg-item"><span>标题字体</span>{{ designFonts.heading }}</div>
+          <div class="pg-item"><span>正文字体</span>{{ designFonts.body }}</div>
         </div>
       </div>
-      <div class="nav-buttons">
-        <button class="btn" @click="page='style'">修改风格</button>
-        <button class="btn btn-accent btn-lg" @click="submitGen">&#9889; 开始生成</button>
+
+      <div class="card">
+        <div class="card-header"><h3>&#128214; 大纲预览</h3></div>
+        <div v-for="s in slides" :key="s.id" class="preview-slide">
+          <span class="ps-idx">{{ s.id }}.</span>
+          <span class="ps-title">{{ s.title || '(无标题)' }}</span>
+          <span class="ps-layout">{{ s.layout }}</span>
+        </div>
+      </div>
+
+      <div class="actions" style="justify-content:space-between">
+        <button class="btn" @click="page='style'">&larr; 修改风格</button>
+        <button class="btn btn-accent btn-lg" @click="submitGen" :disabled="submitting">
+          {{ submitting ? '提交中...' : '&#9889; 开始生成 PPT' }}
+        </button>
       </div>
     </div>
 
-    <!-- PROGRESS -->
+    <!-- ════════════ PROGRESS ════════════ -->
     <div v-show="page === 'progress'" class="page">
       <h2>5. 生成进度</h2>
-      <p class="desc">PPT 正在生成，刷新页面不会中断。</p>
+      <p class="page-desc">PPT 正在生成中，刷新页面不会中断。完成后可下载。</p>
+
       <div class="card progress-card">
-        <div class="progress-bar"><div class="progress-fill" :style="{ width: progressPct + '%' }"></div></div>
-        <div class="progress-text">{{ progressText }}</div>
+        <div class="pg-header">
+          <div class="pg-pct">{{ progressPct }}%</div>
+          <div class="pg-label">{{ progressLabel }}</div>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" :style="{ width: progressPct + '%' }"></div>
+        </div>
+        <div class="pg-status-text">{{ progressText }}</div>
       </div>
+
+      <h3 style="margin-bottom:12px">执行步骤</h3>
       <div class="steps-vertical">
-        <div v-for="s in taskSteps" :key="s.name" :class="['step-v', s.status]">
-          <span class="step-icon">{{ {completed:'&#10003;', running:'&#9654;', failed:'&#10007;', pending:'&#9679;'}[s.status] }}</span>
-          {{ s.name }}
-          <span v-if="s.detail" class="step-detail">{{ s.detail }}</span>
+        <div v-for="s in taskSteps" :key="s.name" :class="['sv', s.status]">
+          <div class="sv-icon">{{ {completed:'&#10003;', running:'&#9654;', failed:'&#10007;', pending:'&#9679;'}[s.status] }}</div>
+          <div class="sv-content">
+            <div class="sv-name">{{ s.name }}</div>
+            <div v-if="s.detail" class="sv-detail">{{ s.detail }}</div>
+          </div>
         </div>
       </div>
-      <div v-if="taskDone" class="success-area">
-        <div class="success-banner">PPT 生成完成！</div>
-        <a :href="downloadUrl" class="btn btn-primary btn-lg" download>&#128229; 下载 PPTX</a>
-        <button class="btn" @click="goHome">返回首页</button>
+
+      <!-- Result -->
+      <div v-if="taskDone" class="result-card">
+        <div class="result-icon">&#9989;</div>
+        <div class="result-text">PPT 生成完成！</div>
+        <div v-if="downloadUrl" class="actions" style="justify-content:center">
+          <a :href="downloadUrl" class="btn btn-primary btn-lg" download>&#128229; 下载 PPTX ({{ fileSize }})</a>
+          <button class="btn" @click="goHome">返回首页</button>
+        </div>
       </div>
-      <div v-if="taskError" class="error">{{ taskError }}</div>
+
+      <div v-if="taskError" class="error-box">{{ taskError }}</div>
     </div>
   </main>
+
+  <footer>
+    <span>PPT Master Service</span>
+    <span class="sep">|</span>
+    <a href="/api/docs" target="_blank">API 文档</a>
+  </footer>
 </div>
 
-<footer>PPT Master Service</footer>
 <script src="app.js"></script>
 </body>
 </html>
