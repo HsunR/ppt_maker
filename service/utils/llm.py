@@ -83,6 +83,8 @@ def try_parse_json(text: str):
     Handles markdown code blocks, unterminated strings, and mixed content."""
     import json as _json
     import re
+    # Sanitize: control chars that break JSON (deepseek outputs literal 0x0A inside strings)
+    text = text.replace(chr(10), chr(32)).replace(chr(13), chr(32))
     # Try 1: direct parse
     try:
         return _json.loads(text)
