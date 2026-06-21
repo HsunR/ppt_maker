@@ -153,32 +153,18 @@ def generate_outline(project_id: str, body: Optional[OutlineGenerate] = None):
     b = body or OutlineGenerate()
     ok, r = call_llm(OUTLINE_PROMPT, src)
     if not ok: raise HTTPException(500, f"LLM fail: {r}")
-    import json as _json2
-    # Try to extract JSON array from response
-    m = re.search(r"\[.*?\]", r, re.DOTALL)
-    if not m:
-        # Try harder - find anything that looks like JSON
-        m = re.search(r"\[\s*\{.*\}\]", r, re.DOTALL)
-    if m:
-        raw = m.group()
-        # Clean common issues: trailing commas, markdown fences, unescaped quotes
-        clean = re.sub(r",\s*([}\]])", r"", raw)  # Remove trailing commas
-        clean = re.sub(r"```(?:json)?\n*", "", clean)  # Remove markdown fences
-        clean = re.sub(r"\n*```", "", clean)
-        try:
-            sd = _json2.loads(clean)
-            # Ensure each slide has an id field
-            for i, s in enumerate(sd):
-                if 'id' not in s:
-                    s['id'] = i + 1
-            slides = [SlideOutline(**s) for s in sd]
-            proj.outline = ProjectOutline(slides=slides, confirmed=False)
-            proj.status = ProjectStatus.outlining
-            save_project(proj)
-            return proj.outline
-        except Exception as e:
-            raise HTTPException(500, f"Parse error in JSON response. Detail: {e}\n\nResponse start: {raw[:500]}")
-    raise HTTPException(500, f"No JSON found in LLM response. Response: {r[:500]}")
+    sd = try_parse_json(r)
+    if not sd or not isinstance(sd, list):
+        raise HTTPException(500, f"No JSON array found in LLM response. Response: {r[:500]}")
+    # Ensure each slide has an id field
+    for i, s in enumerate(sd):
+        if 'id' not in s:
+            s['id'] = i + 1
+    slides = [SlideOutline(**s) for s in sd]
+    proj.outline = ProjectOutline(slides=slides, confirmed=False)
+    proj.status = ProjectStatus.outlining
+    save_project(proj)
+    return proj.outline
 
 @router.get("/api/projects/{project_id}/outline")
 def get_outline(project_id: str): return _gpo404(project_id).outline
