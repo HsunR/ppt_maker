@@ -4,26 +4,23 @@ from typing import Optional
 from openai import OpenAI, APITimeoutError
 from service.config import settings
 
-def get_client(api_key: str = "", base_url: str = "", timeout: Optional[int] = None) -> OpenAI:
+def get_client(timeout: Optional[int] = None) -> OpenAI:
     return OpenAI(
-        api_key=api_key or settings.llm_api_key,
-        base_url=base_url or settings.llm_base_url,
+        api_key=settings.llm_api_key,
+        base_url=settings.llm_base_url,
         timeout=timeout or settings.llm_timeout,
     )
 
 def call_llm(
     system_prompt: str,
     user_message: str,
-    model: str = "",
-    api_key: str = "",
-    base_url: str = "",
     temperature: float = 0.7,
     max_tokens: int = 65536,
     stream: bool = True,  # default to streaming for reasoning model safety
 ) -> tuple[bool, str]:
     """Call OpenAI-compatible LLM. Returns (success, content_or_error)."""
-    client = get_client(api_key, base_url)
-    model = model or settings.llm_model
+    client = get_client()
+    model = settings.llm_model
     try:
         response = client.chat.completions.create(
             model=model,
@@ -37,6 +34,8 @@ def call_llm(
         )
         content = ""
         for chunk in response:
+            if not chunk.choices:
+                continue
             ch = chunk.choices[0]
             if ch.delta and ch.delta.content:
                 content += ch.delta.content
@@ -49,15 +48,12 @@ def call_llm(
 def call_llm_nonstream(
     system_prompt: str,
     user_message: str,
-    model: str = "",
-    api_key: str = "",
-    base_url: str = "",
     temperature: float = 0.7,
     max_tokens: int = 65536,
 ) -> tuple[bool, str]:
     """Non-streaming fallback for models that don't support streaming."""
-    client = get_client(api_key, base_url)
-    model = model or settings.llm_model
+    client = get_client()
+    model = settings.llm_model
     try:
         response = client.chat.completions.create(
             model=model,

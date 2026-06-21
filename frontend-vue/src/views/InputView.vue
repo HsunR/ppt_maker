@@ -48,6 +48,7 @@ export default {
     const upFiles = ref([])
 
     async function saveTopic() {
+      if (!store.currentProject?.id) { showToast('请先打开项目', 'error'); return }
       try {
         await api('PUT', '/projects/' + store.currentProject.id + '/topic', { topic: topicText.value })
         store.topicText = topicText.value
@@ -56,6 +57,7 @@ export default {
       } catch (e) { showToast(e.message, 'error') }
     }
     async function onFileChange(e) {
+      if (!store.currentProject?.id) { showToast('请先打开项目', 'error'); return }
       const files = e.target.files; if (!files.length) return
       const fd = new FormData()
       for (const f of files) fd.append('files', f)
@@ -69,12 +71,14 @@ export default {
     }
     function onDrop(e) { upFiles.value = e.dataTransfer.files; onFileChange({ target: { files: e.dataTransfer.files } }) }
     async function importUrl() {
+      if (!store.currentProject?.id) { showToast('请先打开项目', 'error'); return }
       try {
         await api('POST', '/projects/' + store.currentProject.id + '/sources/url', { url: urlText.value.trim() })
         showToast('导入成功'); urlText.value = ''
       } catch (e) { showToast(e.message, 'error') }
     }
     async function generateOutline() {
+      if (!store.currentProject?.id) { errMsg.value = '请先打开项目'; return }
       genLoading.value = true; errMsg.value = ''
       try {
         const r = await api('POST', '/projects/' + store.currentProject.id + '/outline')

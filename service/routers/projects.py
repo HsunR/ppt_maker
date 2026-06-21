@@ -151,7 +151,7 @@ def generate_outline(project_id: str, body: Optional[OutlineGenerate] = None):
     src = _gst(proj)
     if not src.strip(): raise HTTPException(400, "No source content")
     b = body or OutlineGenerate()
-    ok, r = call_llm(OUTLINE_PROMPT, src, model=b.llm_model, api_key=b.llm_api_key, base_url=b.llm_base_url)
+    ok, r = call_llm(OUTLINE_PROMPT, src)
     if not ok: raise HTTPException(500, f"LLM fail: {r}")
     import json as _json2
     # Try to extract JSON array from response
@@ -167,6 +167,10 @@ def generate_outline(project_id: str, body: Optional[OutlineGenerate] = None):
         clean = re.sub(r"\n*```", "", clean)
         try:
             sd = _json2.loads(clean)
+            # Ensure each slide has an id field
+            for i, s in enumerate(sd):
+                if 'id' not in s:
+                    s['id'] = i + 1
             slides = [SlideOutline(**s) for s in sd]
             proj.outline = ProjectOutline(slides=slides, confirmed=False)
             proj.status = ProjectStatus.outlining
@@ -205,23 +209,23 @@ def design_preview(project_id: str):
         "fonts": proj.design.fonts.model_dump(), "confirmed": proj.outline.confirmed and proj.design.confirmed}
 
 # Generation pipeline helpers
-def _gen_design_spec(proj, pd_, ak, am, au):
+def _gen_design_spec(proj, pd_):
     c = proj.design.colors; f_ = proj.design.fonts
     sj = _json.dumps([s.model_dump() for s in proj.outline.slides], ensure_ascii=False, indent=2)
     sp = "You are PPT Strategist. Make design_spec.md.\nStyle: " + proj.design.style_id + "\nColors: primary=" + c.primary + "\nFonts: heading=" + f_.heading + "\nOutline:\n" + sj
-    ok, r = call_llm(sp, "Generate.", model=am, api_key=ak, base_url=au)
+    ok, r = call_llm(sp, "Generate.")
     if not ok: return False, r
     (pd_ / "design_spec.md").write_text(r, "utf-8")
     (pd_ / "spec_lock.md").write_text(r, "utf-8")
     return True, r
 
-def _gen_svg(proj, slide, pd_, ak, am, au):
+def _gen_svg(proj, slide, pd_):
     c = proj.design.colors; f_ = proj.design.fonts
     sp = ("You are PPT Executor. SVG slide.\n" + str(slide.id) + ": " + slide.title +
         "\nLayout: " + slide.layout + "\nContent: " + slide.content +
         "\nColors: primary=" + c.primary + " bg=" + c.background +
         "\nFonts: " + f_.heading + "\n1920x1080\nOutput ONLY SVG.")
-    ok, r = call_llm(sp, "Gen page " + str(slide.id), model=am, api_key=ak, base_url=au, max_tokens=8192)
+    ok, r = call_llm(sp, "Gen page " + str(slide.id), max_tokens=8192)
     if not ok: return False, r
     m = re.search(r"<svg[\s\S]*?</svg>", r, re.IGNORECASE)
     svgc = m.group() if m else r
@@ -235,7 +239,7 @@ def _gen_notes(proj, pd_):
     (nd / "total.md").write_text("\n\n".join(lines), "utf-8")
 
 # Pipeline runner
-def _run_pipeline(pid, tid, ak, am, au):
+def _run_pipeline(pid, tid):
     task = load_task(tid)
     if not task: return
     pdir = _pd(pid); proj = load_project(pid)
@@ -243,7 +247,7 @@ def _run_pipeline(pid, tid, ak, am, au):
     try:
         update_task_status(task, "running", 0.05, "Design spec")
         update_step(task, 0, "running", "Design spec...")
-        ok, r = _gen_design_spec(proj, pdir, ak, am, au)
+        ok, r = _gen_design_spec(proj, pdir)
         if not ok: set_task_error(task, "Design: " + r); return
         update_step(task, 0, "completed", "Design spec done")
 
@@ -254,7 +258,7 @@ def _run_pipeline(pid, tid, ak, am, au):
             p = 0.1 + 0.7 * ((i + 1) / total)
             update_task_status(task, "running", p, "SVG " + str(i + 1) + "/" + str(total))
             update_step(task, 1, "running", str(i + 1) + "/" + str(total))
-            ok2, r2 = _gen_svg(proj, s, pdir, ak, am, au)
+            ok2, r2 = _gen_svg(proj, s, pdir)
             if not ok2:
                 t = load_task(tid)
                 if t: t.steps[1].detail += " | P" + str(i + 1) + " fail: " + r2[:80]
@@ -289,7 +293,7 @@ def submit_generation(project_id: str, body: Optional[GenerateRequest] = None):
     b = body or GenerateRequest()
     proj.status = ProjectStatus.generating; save_project(proj)
     task = create_task(project_id=project_id, steps=["Design", "SVG", "Notes", "Export"])
-    t = threading.Thread(target=_run_pipeline, args=(project_id, task.task_id, b.llm_api_key, b.llm_model, b.llm_base_url), daemon=True)
+    t = threading.Thread(target=_run_pipeline, args=(project_id, task.task_id), daemon=True)
     t.start()
     return {"task_id": task.task_id, "status": "running"}
 

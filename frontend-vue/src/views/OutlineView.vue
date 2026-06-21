@@ -48,6 +48,7 @@ export default {
     function del(i) { if (store.slides.length > 2) { store.slides.splice(i,1); renumber() } }
     function move(i,d) { const j=i+d; if(j<0||j>=store.slides.length) return; [store.slides[i],store.slides[j]]=[store.slides[j],store.slides[i]]; renumber() }
     async function confirm() {
+      if (!store.currentProject?.id) { errMsg.value = '请先打开项目'; return }
       try {
         await api('PUT', '/projects/'+store.currentProject.id+'/outline', { slides: store.slides, confirmed: true })
         showToast('大纲已确认')

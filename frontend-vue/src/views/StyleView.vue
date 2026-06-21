@@ -55,6 +55,7 @@ export default {
     }
     async function confirmStyle() {
       if (!styleId.value) return
+      if (!store.currentProject?.id) { errMsg.value = '请先打开项目'; return }
       store.modeId = modeId.value
       try {
         const r = await api('POST', '/projects/'+store.currentProject.id+'/style', { style_id: styleId.value, mode_id: modeId.value })

@@ -45,6 +45,7 @@ export default {
     const modeLabels = { narrative:'叙事型', briefing:'简报型', instructional:'教学型', pyramid:'金字塔型', showcase:'展示型' }
 
     async function submitGen() {
+      if (!store.currentProject?.id) { showToast('请先打开项目', 'error'); return }
       submitting.value = true
       try {
         const r = await api('POST', '/projects/'+store.currentProject.id+'/generate')
