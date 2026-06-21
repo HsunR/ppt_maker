@@ -240,11 +240,11 @@ def _run_pipeline(pid, tid):
         slides = proj.outline.slides; total = len(slides)
         if total == 0: set_task_error(task, "No slides"); return
         update_step(task, 1, "running", "1/" + str(total))
-        for i, s in enumerate(slides):
+        for i, sl in enumerate(slides):
             p = 0.1 + 0.7 * ((i + 1) / total)
             update_task_status(task, "running", p, "SVG " + str(i + 1) + "/" + str(total))
             update_step(task, 1, "running", str(i + 1) + "/" + str(total))
-            ok2, r2 = _gen_svg(proj, s, pdir)
+            ok2, r2 = _gen_svg(proj, sl, pdir)
             if not ok2:
                 t = load_task(tid)
                 if t: t.steps[1].detail += " | P" + str(i + 1) + " fail: " + r2[:80]
