@@ -215,6 +215,8 @@ def _gen_svg(proj, slide, pd_):
     if not ok: return False, r
     m = re.search(r"<svg[\s\S]*?</svg>", r, re.IGNORECASE)
     svgc = m.group() if m else r
+    # Fix unescaped & in XML (e.g. Google Fonts URLs)
+    svgc = re.sub(r'&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[\da-fA-F]+;)', '&amp;', svgc)
     sd = pd_ / "svg_output"; sd.mkdir(parents=True, exist_ok=True)
     (sd / ("page_%02d.svg" % slide.id)).write_text(svgc, "utf-8")
     return True, "page_%02d.svg" % slide.id
