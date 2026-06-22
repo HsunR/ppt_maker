@@ -161,9 +161,36 @@ export default {
     }
 
     onMounted(() => {
-      if (store.taskId) {
+      const proj = store.currentProject
+      // If project is already done, show completed state immediately
+      if (proj?.status === 'done') {
+        progressPct.value = 100
+        progressText.value = '生成完成！'
+        taskDone.value = true
+        taskSteps.value = [
+          {name:'设计规范生成',status:'completed',detail:'Done'},
+          {name:'SVG逐页生成',status:'completed',detail:'Done'},
+          {name:'演讲者备注',status:'completed',detail:'Done'},
+          {name:'后处理导出',status:'completed',detail:'Done'}
+        ]
+        // Try to get export file
+        api('GET', '/projects/' + encodeURIComponent(proj.id) + '/exports').then(r => {
+          if (r?.exports?.length) {
+            downloadUrl.value = '/api/projects/' + encodeURIComponent(proj.id) + '/exports/' + r.exports[0].name
+          }
+        }).catch(() => {})
+        // Load SVG preview
+        pollSvg()
+      } else if (proj?.status === 'failed') {
+        taskError.value = '生成失败'
+        taskDone.value = false
+        progressText.value = '生成失败'
+      } else if (store.taskId) {
         pollTask(); pollTimer = setInterval(pollTask, 3000)
         pollSvg(); svgTimer = setInterval(pollSvg, 5000)
+      } else {
+        // No task ID and not done/failed - try to load SVG preview anyway
+        pollSvg()
       }
     })
     onUnmounted(() => {
