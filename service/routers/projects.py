@@ -266,10 +266,21 @@ def _run_pipeline(pid, tid):
 
         ex = pdir / "exports"
         ppts = sorted(ex.glob("*.pptx")) if ex.exists() else []
-        if ppts: set_task_result(task, {"export_path": "api/projects/" + pid + "/exports/" + ppts[-1].name})
-        elif ok3: set_task_result(task, {"message": "Export done"})
-        else: set_task_error(task, "Export failed")
+        if ppts:
+            proj.status = ProjectStatus.done
+            save_project(proj)
+            set_task_result(task, {"export_path": "api/projects/" + pid + "/exports/" + ppts[-1].name})
+        elif ok3:
+            proj.status = ProjectStatus.done
+            save_project(proj)
+            set_task_result(task, {"message": "Export done"})
+        else:
+            proj.status = ProjectStatus.failed
+            save_project(proj)
+            set_task_error(task, "Export failed")
     except Exception as e:
+        proj.status = ProjectStatus.failed
+        save_project(proj)
         t = load_task(tid)
         if t: set_task_error(t, str(e))
 
