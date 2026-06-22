@@ -210,7 +210,7 @@ def _gen_svg(proj, slide, pd_):
     sp = ("You are PPT Executor. SVG slide.\n" + str(slide.id) + ": " + slide.title +
         "\nLayout: " + slide.layout + "\nContent: " + slide.content +
         "\nColors: primary=" + c.primary + " bg=" + c.background +
-        "\nFonts: " + f_.heading + "\n1920x1080\nOutput ONLY SVG.")
+        "\nFonts: " + f_.heading + "\n1280x720\nOutput ONLY SVG.")
     ok, r = call_llm(sp, "Gen page " + str(slide.id), max_tokens=8192)
     if not ok: return False, r
     m = re.search(r"<svg[\s\S]*?</svg>", r, re.IGNORECASE)
