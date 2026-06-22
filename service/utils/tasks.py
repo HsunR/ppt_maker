@@ -65,8 +65,8 @@ def load_all_tasks() -> list[Task]:
     return tasks
 
 
-def update_task_status(task: Task, status: TaskStatus, progress: Optional[float] = None, current_step: Optional[str] = None):
-    task.status = status
+def update_task_status(task: Task, status: TaskStatus | str, progress: Optional[float] = None, current_step: Optional[str] = None):
+    task.status = TaskStatus(status) if isinstance(status, str) else status
     if progress is not None:
         task.progress = progress
     if current_step is not None:
@@ -74,9 +74,9 @@ def update_task_status(task: Task, status: TaskStatus, progress: Optional[float]
     save_task(task)
 
 
-def update_step(task: Task, step_index: int, status: StepStatus, detail: str = ""):
+def update_step(task: Task, step_index: int, status: StepStatus | str, detail: str = ""):
     if 0 <= step_index < len(task.steps):
-        task.steps[step_index].status = status
+        task.steps[step_index].status = StepStatus(status) if isinstance(status, str) else status
         task.steps[step_index].detail = detail
     save_task(task)
 
