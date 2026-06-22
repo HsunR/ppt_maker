@@ -108,12 +108,16 @@ class Project(BaseModel):
 # ─── Task (stored on disk) ───
 
 class TaskStep(BaseModel):
+    model_config = {"use_enum_values": True}
+    
     name: str
     status: StepStatus = StepStatus.pending
     detail: str = ""
 
 
 class Task(BaseModel):
+    model_config = {"use_enum_values": True}
+    
     task_id: str
     project_id: str
     status: TaskStatus = TaskStatus.pending
@@ -142,9 +146,6 @@ class ProjectCreate(BaseModel):
 class OutlineGenerate(BaseModel):
     topic: str = ""
     source_text: str = ""
-    llm_api_key: str = ""
-    llm_model: str = ""
-    llm_base_url: str = ""
 
 
 class OutlineUpdate(BaseModel):
@@ -160,9 +161,7 @@ class StyleSelect(BaseModel):
 
 
 class GenerateRequest(BaseModel):
-    llm_api_key: str = ""
-    llm_model: str = ""
-    llm_base_url: str = ""
+    pass
 
 
 class SourceUrlInput(BaseModel):

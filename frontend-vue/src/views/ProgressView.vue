@@ -152,7 +152,7 @@ export default {
           clearInterval(pollTimer); clearInterval(svgTimer)
           taskDone.value = true; store.taskDone = true
           progressPct.value = 100; progressText.value = '生成完成！'
-          if (t.result?.export_path) { downloadUrl.value = '/api/'+t.result.export_path; store.downloadUrl = downloadUrl.value }
+          if (t.result?.export_path) { downloadUrl.value = '/'+t.result.export_path; store.downloadUrl = downloadUrl.value }
         } else if (t.status === 'failed') {
           clearInterval(pollTimer); clearInterval(svgTimer)
           taskError.value = t.error || '生成失败'; store.taskError = taskError.value
