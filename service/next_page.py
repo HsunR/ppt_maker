@@ -1,11 +1,10 @@
 import sys, os, json, re
 from pathlib import Path
 from openai import OpenAI
+from service.config import settings
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 proj_name = sys.argv[1] if len(sys.argv) > 1 else "ma-test"
-LLM_KEY = "sk-Xxpqt3QblxHu5Mz7anpiUEBSM1ME04umGTMizDs4ky7MFyzTymYnQzWieKYzCJjV"
-LLM_URL = "https://opencode.ai/zen/go/v1"
 
 proj_dir = Path("ppt-master/projects") / proj_name
 for d in sorted(Path("ppt-master/projects").iterdir()):
@@ -39,8 +38,8 @@ if existing:
         svg_c = existing[rid].read_text("utf-8")
         prompt += f"\n--- Page {rid} ---\n{svg_c}\n"
 
-client = OpenAI(api_key=LLM_KEY, base_url=LLM_URL, timeout=300)
-r = client.chat.completions.create(model="deepseek-v4-flash",
+client = OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_base_url, timeout=settings.llm_timeout)
+r = client.chat.completions.create(model=settings.llm_model,
     messages=[{"role":"system","content":prompt},{"role":"user","content":f"SVG slide {pid}"}],
     max_tokens=32768, temperature=0.7, stream=True)
 

@@ -28,11 +28,18 @@ class Settings:
         self.tasks_dir = os.environ.get("PPT_SERVICE_TASKS_DIR", str(service_dir / "tasks"))
         self.host = os.environ.get("PPT_SERVICE_HOST", "0.0.0.0")
         self.port = int(os.environ.get("PPT_SERVICE_PORT", "8765"))
-        # LLM defaults
-        self.llm_api_key = os.environ.get("PPT_SERVICE_LLM_API_KEY", "")
-        self.llm_model = os.environ.get("PPT_SERVICE_LLM_MODEL", "qwen3.7-plus")
-        self.llm_base_url = os.environ.get("PPT_SERVICE_LLM_BASE_URL", "https://opencode.ai/zen/go/v1")
+        # LLM config (required)
+        self.llm_api_key = os.environ.get("PPT_SERVICE_LLM_API_KEY")
+        self.llm_model = os.environ.get("PPT_SERVICE_LLM_MODEL")
+        self.llm_base_url = os.environ.get("PPT_SERVICE_LLM_BASE_URL")
         self.llm_timeout = int(os.environ.get("PPT_SERVICE_LLM_TIMEOUT", "120"))
+        
+        if not self.llm_api_key:
+            raise ValueError("PPT_SERVICE_LLM_API_KEY is required. Set it in .env or environment variables.")
+        if not self.llm_model:
+            raise ValueError("PPT_SERVICE_LLM_MODEL is required. Set it in .env or environment variables.")
+        if not self.llm_base_url:
+            raise ValueError("PPT_SERVICE_LLM_BASE_URL is required. Set it in .env or environment variables.")
         Path(self.projects_dir).mkdir(parents=True, exist_ok=True)
         Path(self.tasks_dir).mkdir(parents=True, exist_ok=True)
 

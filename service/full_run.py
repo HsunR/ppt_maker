@@ -1,16 +1,8 @@
 import sys, os, time, subprocess, httpx, shutil, json, re
 from pathlib import Path
 
-os.environ.update({
-    "PPT_SERVICE_LLM_BASE_URL": "https://opencode.ai/zen/go/v1",
-    "PPT_SERVICE_LLM_API_KEY": "sk-Xxpqt3QblxHu5Mz7anpiUEBSM1ME04umGTMizDs4ky7MFyzTymYnQzWieKYzCJjV",
-    "PPT_SERVICE_LLM_MODEL": "qwen3.7-plus",
-})
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-# Cfg
-LLM = {"llm_api_key": "sk-Xxpqt3QblxHu5Mz7anpiUEBSM1ME04umGTMizDs4ky7MFyzTymYnQzWieKYzCJjV",
-       "llm_model": "qwen3.7-plus", "llm_base_url": "https://opencode.ai/zen/go/v1"}
 BASE = "http://localhost:8765"
 
 print("[0] Converting document...")
@@ -46,7 +38,7 @@ try:
     t("Set topic", lambda: httpx.put(BASE+f"/api/projects/{pid}/topic", json={"topic":topic_text}, timeout=10))
 
     print("  >>> LLM outline...")
-    r = t("Outline", lambda: httpx.post(BASE+f"/api/projects/{pid}/outline", json=LLM, timeout=120))
+    r = t("Outline", lambda: httpx.post(BASE+f"/api/projects/{pid}/outline", json={}, timeout=120))
     slides = r.json().get("slides", []) if r else []
     for s in slides: print(f"     P{s['id']:2d}: {s['title']} [{s['layout']}]")
     if not slides: raise SystemExit("No slides")
@@ -55,7 +47,7 @@ try:
     t("Style", lambda: httpx.post(BASE+f"/api/projects/{pid}/style", json={"style_id":"dark-tech","mode_id":"narrative"}, timeout=10))
 
     print("  >>> Generation...")
-    r = t("Submit", lambda: httpx.post(BASE+f"/api/projects/{pid}/generate", json=LLM, timeout=10))
+    r = t("Submit", lambda: httpx.post(BASE+f"/api/projects/{pid}/generate", json={}, timeout=10))
     tid = r.json().get("task_id","") if r else ""
     if not tid: raise SystemExit("No task")
 

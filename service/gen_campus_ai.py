@@ -1,19 +1,9 @@
 import sys, os, time, subprocess, httpx, shutil, json
 from pathlib import Path
 
-os.environ.update({
-    "PPT_SERVICE_LLM_BASE_URL": "https://opencode.ai/zen/go/v1",
-    "PPT_SERVICE_LLM_API_KEY": "sk-Xxpqt3QblxHu5Mz7anpiUEBSM1ME04umGTMizDs4ky7MFyzTymYnQzWieKYzCJjV",
-    "PPT_SERVICE_LLM_MODEL": "qwen3.7-plus",
-})
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 BASE = "http://localhost:8765"
-LLM = {
-    "llm_api_key": "sk-Xxpqt3QblxHu5Mz7anpiUEBSM1ME04umGTMizDs4ky7MFyzTymYnQzWieKYzCJjV",
-    "llm_model": "qwen3.7-plus",
-    "llm_base_url": "https://opencode.ai/zen/go/v1",
-}
 
 # Step 0: Convert document to MD in a temp location first
 docx = Path(r"D:\0Document\school work\AI\人工智能大作业\提交\第四组_基于情感解答领域微调模型与RAG回复增强校园AI问答系统（项目分工文档）.docx")
@@ -73,7 +63,7 @@ try:
     r = test("Set topic", lambda: httpx.put(BASE+"/api/projects/campus-ai/topic", json={"topic": topic_text}, timeout=10))
 
     print("  >>> AI generating outline...")
-    r = test("Generate outline", lambda: httpx.post(BASE+"/api/projects/campus-ai/outline", json=LLM, timeout=120))
+    r = test("Generate outline", lambda: httpx.post(BASE+"/api/projects/campus-ai/outline", json={}, timeout=120))
     slides = r.json().get("slides", []) if r else []
     for s in slides:
         print(f"     P{s['id']:2d}: {s['title']} [{s['layout']}]")
@@ -84,7 +74,7 @@ try:
     test("Select style", lambda: httpx.post(BASE+"/api/projects/campus-ai/style", json={"style_id":"dark-tech","mode_id":"narrative"}, timeout=10))
 
     print("  >>> Submitting generation...")
-    r = test("Submit generate", lambda: httpx.post(BASE+"/api/projects/campus-ai/generate", json=LLM, timeout=10))
+    r = test("Submit generate", lambda: httpx.post(BASE+"/api/projects/campus-ai/generate", json={}, timeout=10))
     tid = r.json().get("task_id","") if r else ""
     if not tid: raise SystemExit("No task ID")
 

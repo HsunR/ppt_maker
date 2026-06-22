@@ -1,25 +1,55 @@
+# Python
 __pycache__/
 *.py[cod]
 *.pyo
 *.egg-info/
+.venv/
+venv/
+
+# Environment
 .env
+
+# Logs
 service/logs/
+service/server*.log
+
+# Task files
 service/tasks/
+
+# Service scripts (keep only core files)
 service/*.py
 !service/__init__.py
 !service/main.py
 !service/config.py
 !service/next_page.py
 service/**/__pycache__/
+
+# Frontend
+node_modules/
+frontend-vue/dist/
+frontend-vue/node_modules/
+
+# Old frontend (legacy)
 frontend/*
 !frontend/index.html
 !frontend/style.css
 !frontend/app.js
-service/server*.log
+
+# Projects output
 ppt-master/projects/*/
 ppt-master/projects/*.md
-node_modules/
-.venv/
-venv/
+projects/
+
+# PPT files (large)
 *.pptx
 !ppt-master/examples/**/*.pptx
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

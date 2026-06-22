@@ -2,15 +2,13 @@ import sys, os, time, subprocess, json, re, shutil, threading
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from openai import OpenAI
+from service.config import settings
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-LLM_KEY = "sk-Xxpqt3QblxHu5Mz7anpiUEBSM1ME04umGTMizDs4ky7MFyzTymYnQzWieKYzCJjV"
-LLM_URL = "https://opencode.ai/zen/go/v1"
-MODEL = "qwen3.7-plus"
 PARALLEL = 3  # 3 pages at a time
 
-client = OpenAI(api_key=LLM_KEY, base_url=LLM_URL, timeout=120)
+client = OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_base_url, timeout=settings.llm_timeout)
 proj_dir = Path("ppt-master/projects/campus-ai")
 
 # Read project data
@@ -53,7 +51,7 @@ def gen_page(slide):
     
     try:
         r = client.chat.completions.create(
-            model=MODEL,
+            model=settings.llm_model,
             messages=[
                 {"role": "system", "content": sp},
                 {"role": "user", "content": f"Generate slide {pid}: {slide['title']}"}

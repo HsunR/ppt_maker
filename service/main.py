@@ -7,7 +7,10 @@ from service.config import settings
 from service.routers import projects, styles
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-FRONTEND_DIR = ROOT_DIR / "frontend"
+# Priority: frontend-vue/dist > frontend/ (static files)
+FRONTEND_DIR = ROOT_DIR / "frontend-vue" / "dist"
+if not (FRONTEND_DIR / "index.html").exists():
+    FRONTEND_DIR = ROOT_DIR / "frontend"
 
 app = FastAPI(title="PPT Master Service", version="1.0.0", docs_url="/api/docs")
 
@@ -26,7 +29,6 @@ app.include_router(styles.router)
 def health():
     return {"status": "ok", "version": "1.0.0"}
 
-# Mount static files LAST - API routes have priority
 if FRONTEND_DIR.exists() and (FRONTEND_DIR / "index.html").exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
 
