@@ -64,6 +64,16 @@ export default {
           store.designFonts = proj.design?.fonts || {}
           router.push('/confirm')
         }
+        else if (st === 'generating' && proj.task_id) {
+          store.taskId = proj.task_id
+          router.push('/progress')
+        }
+        else if (st === 'done') {
+          router.push('/progress')
+        }
+        else if (st === 'failed') {
+          router.push('/progress')
+        }
         else router.push('/input')
       } catch (e) { showToast(e.message, 'error') }
     }

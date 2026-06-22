@@ -91,6 +91,7 @@ class Project(BaseModel):
     name: str
     format: str = "ppt169"
     status: ProjectStatus = ProjectStatus.created
+    task_id: Optional[str] = None
     sources: list[SourceEntry] = []
     topic: str = ""
     outline: ProjectOutline = Field(default_factory=ProjectOutline)

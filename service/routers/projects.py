@@ -268,18 +268,22 @@ def _run_pipeline(pid, tid):
         ppts = sorted(ex.glob("*.pptx")) if ex.exists() else []
         if ppts:
             proj.status = ProjectStatus.done
+            proj.task_id = None
             save_project(proj)
             set_task_result(task, {"export_path": "api/projects/" + pid + "/exports/" + ppts[-1].name})
         elif ok3:
             proj.status = ProjectStatus.done
+            proj.task_id = None
             save_project(proj)
             set_task_result(task, {"message": "Export done"})
         else:
             proj.status = ProjectStatus.failed
+            proj.task_id = None
             save_project(proj)
             set_task_error(task, "Export failed")
     except Exception as e:
         proj.status = ProjectStatus.failed
+        proj.task_id = None
         save_project(proj)
         t = load_task(tid)
         if t: set_task_error(t, str(e))
@@ -290,8 +294,10 @@ def submit_generation(project_id: str, body: Optional[GenerateRequest] = None):
     proj = _gpo404(project_id)
     if proj.status == ProjectStatus.generating: raise HTTPException(400, "Already generating")
     b = body or GenerateRequest()
-    proj.status = ProjectStatus.generating; save_project(proj)
     task = create_task(project_id=project_id, steps=["Design", "SVG", "Notes", "Export"])
+    proj.status = ProjectStatus.generating
+    proj.task_id = task.task_id
+    save_project(proj)
     t = threading.Thread(target=_run_pipeline, args=(project_id, task.task_id), daemon=True)
     t.start()
     return {"task_id": task.task_id, "status": "running"}
